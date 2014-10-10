@@ -30,9 +30,9 @@ class Estimo:
         driver.find_element_by_id("steamPassword").clear()
         driver.find_element_by_id("steamPassword").send_keys(self.password)
         driver.find_element_by_id("imageLogin").click()
-        games = driver.find_elements_by_class_name("title")
+        games = driver.find_elements_by_xpath('//div[@class="ajax_gifts"]//div[@class="title"]//a')
         for game in games:
-            print(game.find_elements_by_tag_name("a")[0].text)
+                print(game.text)
         # driver.find_element_by_link_text("Assassin's Creed: Director's Cut Edition").click()
         # driver.find_element_by_link_text("Enter to Win! (20P)").click()
         # driver.find_element_by_link_text("Dead Space").click()
