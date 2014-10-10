@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException
 import json
 import sys
+import time
 
 SETTINGS_PATH = 'settings.cfg'
 
@@ -14,10 +17,7 @@ class Estimo:
         self.verificationErrors = []
         self.accept_next_alert = True
         self.settings = self._load_settings()
-
-    def run(self):
-        self.estimo()
-        self.close()
+        self.base_window = self.drv.current_window_handle
 
     def close(self):
         self.drv.quit()
@@ -30,6 +30,7 @@ class Estimo:
         self.drv.find_element_by_id("steamPassword").clear()
         self.drv.find_element_by_id("steamPassword").send_keys(self.settings['password'])
         self.drv.find_element_by_id("imageLogin").click()
+        time.sleep(15)
 
     def _scan(self):
         self.drv.get(self.base_url + "/")
@@ -55,20 +56,27 @@ class Estimo:
                     self.settings["games"][ng] = 0
         self._save_settings()
 
-    def estimo(self):
+    def subscribe(self):
         self.login()
+        wanted_games = {k for k, v in self.settings["games"].items() if v == 1}
         games = self._scan()
         for game in games:
+            if game.text in wanted_games:
                 print(game.text)
-        # driver.find_element_by_link_text("Assassin's Creed: Director's Cut Edition").click()
-        # driver.find_element_by_link_text("Enter to Win! (20P)").click()
-        # driver.find_element_by_link_text("Dead Space").click()
-        # driver.find_element_by_link_text("Enter to Win! (20P)").click()
-        # driver.find_element_by_link_text("Logout").click()
+                self.drv.execute_script("$(window.open('" + game.get_attribute("href") + "'))")
+                self.drv.switch_to_window(self.drv.window_handles[-1])
+                try:
+                    self.drv.find_element_by_partial_link_text("Enter to Win").click()
+                except NoSuchElementException:
+                    pass
+                self.drv.close()
+                self.drv.switch_to_window(self.base_window)
 
 
 if __name__ == "__main__":
     estimo = Estimo()
     if len(sys.argv) == 2 and sys.argv[1] == '-scan':
         estimo.scan()
-        estimo.close()
+    else:
+        estimo.subscribe()
+    estimo.close()
