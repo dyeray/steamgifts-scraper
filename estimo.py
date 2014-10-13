@@ -3,7 +3,6 @@
 from selenium import webdriver
 from selenium.common.exceptions import NoSuchElementException
 import json
-import sys
 import time
 import argparse
 
@@ -51,13 +50,13 @@ class Estimo:
     def _save_settings(self):
         json.dump(self.settings, open(SETTINGS_PATH, "w"))
 
-    def scan(self):
+    def scan(self, deep=False):
         games = self.settings["games"]
         new_games = {g.text for g in self._scan()}
         for ng in new_games:
             if ng not in games:
                 decision = raw_input("New game found: '" + ng + "'. Do you want to automatically" +
-                                     "access its giveaways (y/n/q)?")
+                                     " access its giveaways (y/n/q)?")
                 if decision == 'y':
                     self.settings["games"][ng] = 1
                 elif decision == 'n':
@@ -66,7 +65,7 @@ class Estimo:
                     break
         self._save_settings()
 
-    def subscribe(self):
+    def subscribe(self, deep=False):
         self.login()
         wanted_games = {k for k, v in self.settings["games"].items() if v == 1}
         games = self._scan()
@@ -84,10 +83,17 @@ class Estimo:
 
 
 if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='steamgifts.com client')
+    parser = argparse.ArgumentParser(description='steamgifts.com client')
+    parser.add_argument('-s', '--scan', const='scan', default='play', nargs='?', dest='operation',
+                        help='Scan the webpage and choose what games you want')
+    parser.add_argument('-f', '--full', const=True, default=False, nargs='?',
+                        help='Work on all pages, not just on the first one (frontpage - page 1)')
+    parser.add_argument('-d', '--debug', const=True, default=False, nargs='?',
+                        help='Show the browser window')
     estimo = Estimo()
-    if len(sys.argv) == 2 and sys.argv[1] == 'scan':
-        estimo.scan()
+    args = parser.parse_args()
+    if args.operation == 'scan':
+        estimo.scan(args.deep)
     else:
-        estimo.subscribe()
+        estimo.subscribe(args.deep)
     estimo.close()
