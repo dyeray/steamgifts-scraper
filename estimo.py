@@ -5,6 +5,7 @@ from selenium.common.exceptions import NoSuchElementException
 import json
 import sys
 import time
+import argparse
 
 SETTINGS_PATH = 'settings.cfg'
 
@@ -14,6 +15,7 @@ class Estimo:
         self.drv = webdriver.Firefox()
         self.drv.implicitly_wait(10)
         self.base_url = "http://www.steamgifts.com"
+        self.page_url = "http://www.steamgifts.com/open/page/"
         self.verificationErrors = []
         self.accept_next_alert = True
         self.settings = self._load_settings()
@@ -32,10 +34,16 @@ class Estimo:
         self.drv.find_element_by_id("imageLogin").click()
         time.sleep(15)
 
-    def _scan(self):
+    def _scan(self, deep=False):
         self.drv.get(self.base_url + "/")
-        return self.drv.find_elements_by_xpath(
+        games = self.drv.find_elements_by_xpath(
             '//div[@class="ajax_gifts"]//div[@class="title"]//a')
+        if deep:
+            for i in range(2, 10):
+                self.drv.get(self.page_url + i)
+                games += self.drv.find_elements_by_xpath(
+                    '//div[@class="ajax_gifts"]//div[@class="title"]//a')
+        return games
 
     def _load_settings(self):
         return json.load(open(SETTINGS_PATH))
@@ -48,12 +56,14 @@ class Estimo:
         new_games = {g.text for g in self._scan()}
         for ng in new_games:
             if ng not in games:
-                decision = raw_input("New game found: '" + ng +
-                                     "'. Do you want to automatically access its giveaways (y/n)?")
+                decision = raw_input("New game found: '" + ng + "'. Do you want to automatically" +
+                                     "access its giveaways (y/n/q)?")
                 if decision == 'y':
                     self.settings["games"][ng] = 1
-                else:
+                elif decision == 'n':
                     self.settings["games"][ng] = 0
+                else:
+                    break
         self._save_settings()
 
     def subscribe(self):
@@ -74,8 +84,9 @@ class Estimo:
 
 
 if __name__ == "__main__":
+    # parser = argparse.ArgumentParser(description='steamgifts.com client')
     estimo = Estimo()
-    if len(sys.argv) == 2 and sys.argv[1] == '-scan':
+    if len(sys.argv) == 2 and sys.argv[1] == 'scan':
         estimo.scan()
     else:
         estimo.subscribe()
