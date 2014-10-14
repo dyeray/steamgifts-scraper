@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 
+from settings import Settings
 from selenium import webdriver
 from pyvirtualdisplay import Display
-import json
 import time
-import argparse
-
-SETTINGS_PATH = 'settings.cfg'
 
 
 class Estimo:
     def __init__(self):
         self.base_url = "http://www.steamgifts.com"
         self.page_url = "http://www.steamgifts.com/open/page/"
-        self.settings = self._load_settings()
+        self.settings = Settings()
 
     def _stop_driver(self):
         self.drv.quit()
@@ -34,13 +31,13 @@ class Estimo:
         self.drv.get(self.base_url + "/")
         self.drv.find_element_by_css_selector("img.login").click()
         self.drv.find_element_by_id("steamAccountName").clear()
-        self.drv.find_element_by_id("steamAccountName").send_keys(self.settings['username'])
+        self.drv.find_element_by_id("steamAccountName").send_keys(self.settings.get_username())
         self.drv.find_element_by_id("steamPassword").clear()
-        self.drv.find_element_by_id("steamPassword").send_keys(self.settings['password'])
+        self.drv.find_element_by_id("steamPassword").send_keys(self.settings.get_password())
         self.drv.find_element_by_id("imageLogin").click()
         time.sleep(15)
 
-    def _scan(self, deep=False):
+    def _scrape(self, deep=False):
         self.drv.get(self.base_url + "/")
         games = self.drv.find_elements_by_xpath(
             '//div[@class="ajax_gifts"]//div[@class="title"]//a')
@@ -51,60 +48,31 @@ class Estimo:
                     '//div[@class="ajax_gifts"]//div[@class="title"]//a')
         return games
 
-    def _load_settings(self):
-        return json.load(open(SETTINGS_PATH))
-
-    def _save_settings(self):
-        json.dump(self.settings, open(SETTINGS_PATH, "w"))
-
     def scan(self, deep=False, dbg=False):
         self._start_driver(dbg)
-        games = self.settings["games"]
-        new_games = {g.text for g in self._scan()}
-        for ng in new_games:
-            if ng not in games:
-                decision = raw_input("New game found: '" + ng + "'. Do you want to automatically" +
-                                     " access its giveaways (y/n/q)?")
-                if decision == 'y':
-                    self.settings["games"][ng] = 1
-                elif decision == 'n':
-                    self.settings["games"][ng] = 0
-                else:
-                    break
-        self._save_settings()
+        new_games = filter(lambda g: g not in self.settings.get_games(),
+                           {g.text for g in self._scrape()})
         self._stop_driver()
+        return new_games
 
     def subscribe(self, deep=False, debug=False):
         self._start_driver(debug)
         self._login()
-        wanted_games = {k for k, v in self.settings["games"].items() if v == 1}
-        games = self._scan()
+        wanted_games = {k for k, v in self.settings.get_games().items() if v == 1}
+        games = self._scrape()
+        subscribed = []
         for game in games:
-            if game.text in wanted_games:
-                game_title = game.text
-                self.drv.execute_script("$(window.open('" + game.get_attribute("href") + "'))")
-                self.drv.switch_to_window(self.drv.window_handles[-1])
-                giveaway = self.drv.find_elements_by_xpath(
-                    '//form[@id="form_enter_giveaway"]//a')[0]
-                if giveaway.text.startswith('Enter to Win'):
-                    self.drv.find_element_by_partial_link_text("Enter to Win").click()
-                    print(game_title)
-                self.drv.close()
-                self.drv.switch_to_window(self.base_window)
+            if game.text not in wanted_games:
+                continue
+            game_title = game.text
+            self.drv.execute_script("$(window.open('" + game.get_attribute("href") + "'))")
+            self.drv.switch_to_window(self.drv.window_handles[-1])
+            giveaway = self.drv.find_elements_by_xpath(
+                '//form[@id="form_enter_giveaway"]//a')[0]
+            if giveaway.text.startswith('Enter to Win'):
+                self.drv.find_element_by_partial_link_text("Enter to Win").click()
+                subscribed.append(game_title)
+            self.drv.close()
+            self.drv.switch_to_window(self.base_window)
         self._stop_driver()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='steamgifts.com client')
-    parser.add_argument('-s', '--scan', const='scan', default='play', nargs='?', dest='operation',
-                        help='Scan the webpage and choose what games you want')
-    parser.add_argument('-f', '--full', const=True, default=False, nargs='?',
-                        help='Work on all pages, not just on the first one (frontpage - page 1)')
-    parser.add_argument('-d', '--debug', const=True, default=False, nargs='?',
-                        help='Show the browser window')
-    estimo = Estimo()
-    argss = parser.parse_args()
-    if argss.operation == 'scan':
-        estimo.scan(argss.full, argss.debug)
-    else:
-        estimo.subscribe(argss.full, argss.debug)
+        return subscribed
