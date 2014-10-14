@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 from selenium import webdriver
-from selenium.common.exceptions import NoSuchElementException
 from pyvirtualdisplay import Display
 import json
 import time
@@ -18,7 +17,8 @@ class Estimo:
 
     def _stop_driver(self):
         self.drv.quit()
-        self.display.stop()
+        if self.display:
+            self.display.stop()
 
     def _start_driver(self, dbg=False):
         self.display = None
@@ -81,13 +81,14 @@ class Estimo:
         games = self._scan()
         for game in games:
             if game.text in wanted_games:
-                print(game.text)
+                game_title = game.text
                 self.drv.execute_script("$(window.open('" + game.get_attribute("href") + "'))")
                 self.drv.switch_to_window(self.drv.window_handles[-1])
-                try:
+                giveaway = self.drv.find_elements_by_xpath(
+                    '//form[@id="form_enter_giveaway"]//a')[0]
+                if giveaway.text.startswith('Enter to Win'):
                     self.drv.find_element_by_partial_link_text("Enter to Win").click()
-                except NoSuchElementException:
-                    pass
+                    print(game_title)
                 self.drv.close()
                 self.drv.switch_to_window(self.base_window)
         self._stop_driver()
