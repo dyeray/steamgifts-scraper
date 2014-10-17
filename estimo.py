@@ -37,29 +37,29 @@ class Estimo:
         self.drv.find_element_by_id("imageLogin").click()
         time.sleep(15)
 
-    def _scrape(self, deep=False):
+    def _scrape(self, full=False):
         self.drv.get(self.base_url + "/")
         games = self.drv.find_elements_by_xpath(
             '//div[@class="ajax_gifts"]//div[@class="title"]//a')
-        if deep:
+        if full:
             for i in range(2, 10):
-                self.drv.get(self.page_url + i)
+                self.drv.get(self.page_url + str(i))
                 games += self.drv.find_elements_by_xpath(
                     '//div[@class="ajax_gifts"]//div[@class="title"]//a')
         return games
 
-    def scan(self, deep=False, dbg=False):
+    def scan(self, full=False, dbg=False):
         self._start_driver(dbg)
         new_games = filter(lambda g: g not in self.settings.get_games(),
-                           {g.text for g in self._scrape()})
+                           {g.text for g in self._scrape(full)})
         self._stop_driver()
         return new_games
 
-    def subscribe(self, deep=False, debug=False):
+    def subscribe(self, full=False, debug=False):
         self._start_driver(debug)
         self._login()
         wanted_games = {k for k, v in self.settings.get_games().items() if v == 1}
-        games = self._scrape()
+        games = self._scrape(full)
         subscribed = []
         for game in games:
             if game.text not in wanted_games:
