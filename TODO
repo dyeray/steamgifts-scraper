@@ -1,7 +1,9 @@
 -Replace wait after login for a conditional wait
 -Run in a loop
--Scan more pages in -scan
 -Do not open windows for links aready entered or links that require to have spent money
 -GUI
 -Encrypt settings
--Game priority
+-Game priority: order list of games by game priority
+-Ignore games already owned
+-Stop accessing giveaways if there are not enough points
+-If we take into account priority, current points, and points per game, we can know beforehand what games to access.
