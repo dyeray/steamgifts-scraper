@@ -6,6 +6,12 @@ from pyvirtualdisplay import Display
 import time
 
 
+class Game:
+    def __init__(self, title, href):
+        self.title = title
+        self.href = href
+
+
 class Estimo:
     def __init__(self):
         self.base_url = "http://www.steamgifts.com"
@@ -37,21 +43,28 @@ class Estimo:
         self.drv.find_element_by_id("imageLogin").click()
         time.sleep(15)
 
+    def _build_games_list(self, games):
+        # Extract the game information we want from the selenium nodes
+        games_list = []
+        for game in games:
+            games_list.append(Game(game.text, game.get_attribute("href")))
+        return games_list
+
     def _scrape(self, full=False):
         self.drv.get(self.base_url + "/")
-        games = self.drv.find_elements_by_xpath(
-            '//div[@class="ajax_gifts"]//div[@class="title"]//a')
+        games = self._build_games_list(self.drv.find_elements_by_xpath(
+            '//div[@class="ajax_gifts"]//div[@class="title"]//a'))
         if full:
             for i in range(2, 10):
                 self.drv.get(self.page_url + str(i))
-                games += self.drv.find_elements_by_xpath(
-                    '//div[@class="ajax_gifts"]//div[@class="title"]//a')
+                games += self._build_games_list(self.drv.find_elements_by_xpath(
+                    '//div[@class="ajax_gifts"]//div[@class="title"]//a'))
         return games
 
     def scan(self, full=False, dbg=False):
         self._start_driver(dbg)
         new_games = filter(lambda g: g not in self.settings.get_games(),
-                           {g.text for g in self._scrape(full)})
+                           {g.title for g in self._scrape(full)})
         self._stop_driver()
         return new_games
 
@@ -62,10 +75,10 @@ class Estimo:
         games = self._scrape(full)
         subscribed = []
         for game in games:
-            if game.text not in wanted_games:
+            if game.title not in wanted_games:
                 continue
-            game_title = game.text
-            self.drv.execute_script("$(window.open('" + game.get_attribute("href") + "'))")
+            game_title = game.title
+            self.drv.execute_script("$(window.open('" + game.href + "'))")
             self.drv.switch_to_window(self.drv.window_handles[-1])
             giveaway = self.drv.find_elements_by_xpath(
                 '//form[@id="form_enter_giveaway"]//a')[0]

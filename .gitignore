@@ -1,3 +1,4 @@
 settings.cfg
 .ropeproject
 *.pyc
+.idea
